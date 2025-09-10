@@ -15,27 +15,25 @@ import { Play, Download, RefreshCw, Bug, Trash2, Copy } from "lucide-react";
 import "../playground.css";
 import { twj } from "tw-to-css";
 
-const DEFAULT_JSX = `
+const DEFAULT_JSX = `<div style={{
+  width: "100%",
+  height: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "linear-gradient(135deg, #0b1020 0%, #1a213a 100%)",
+}}>
   <div style={{
-    width: "100%",
-    height: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "linear-gradient(135deg, #0b1020 0%, #1a213a 100%)",
+    padding: 48,
+    borderRadius: 24,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
   }}>
-    <div style={{
-      padding: 48,
-      borderRadius: 24,
-      background: "rgba(255,255,255,0.06)",
-      border: "1px solid rgba(255,255,255,0.12)",
-      boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-    }}>
-      <div style={{ fontSize: 64, color: "#fff", fontWeight: 700 }}>Takumi Playground</div>
-      <div style={{ fontSize: 24, color: "#B6C1FF", marginTop: 8 }}>Render PNG from JSX</div>
-    </div>
+    <div style={{ fontSize: 64, color: "#fff", fontWeight: 700 }}>Takumi Playground</div>
+    <div style={{ fontSize: 24, color: "#B6C1FF", marginTop: 8 }}>Render PNG from JSX</div>
   </div>
-`;
+</div>`;
 
 export default function Playground() {
   const [jsxCode, setJsxCode] = useState<string>(DEFAULT_JSX);
