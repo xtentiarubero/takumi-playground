@@ -60,39 +60,8 @@ export function useTakumi() {
       format: OutputFormat = "png"
     ): Promise<string> => {
       if (!renderer) throw new Error("Renderer not ready");
-      try {
-        // Prefer the direct method if available on the WASM renderer
-        const rAny = renderer as unknown as {
-          renderAsDataUrl?: (
-            n: AnyNode,
-            w: number,
-            h: number,
-            f: OutputFormat
-          ) => Promise<string>;
-        };
-        if (typeof rAny.renderAsDataUrl === "function") {
-          return await rAny.renderAsDataUrl(
-            node as AnyNode,
-            width,
-            height,
-            format
-          );
-        }
-
-        // Fallback: Render -> blob -> data URL
-        const buffer: Uint8Array = await renderer.render(
-          node as AnyNode,
-          width,
-          height,
-          format
-        );
-        const mime = format === "png" ? "image/png" : "image/webp";
-        const blob = new Blob([buffer], { type: mime });
-        return await blobToDataUrl(blob);
-      } catch (e: unknown) {
-        console.error("Render failed", e);
-        throw e instanceof Error ? e : new Error(String(e));
-      }
+      // Directly use WASM's data URL renderer
+      return renderer.renderAsDataUrl(node as AnyNode, width, height, format);
     },
     [renderer]
   );
@@ -108,11 +77,3 @@ export function useTakumi() {
   };
 }
 
-async function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}

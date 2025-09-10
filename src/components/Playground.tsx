@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as ReactJSXRuntime from "react/jsx-runtime";
+import * as ReactJSXDevRuntime from "react/jsx-dev-runtime";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useTakumi } from "../hooks/useTakumi";
 import "../playground.css";
@@ -141,9 +143,16 @@ export default function Playground() {
         const { transform: sucraseTransform } = await import("sucrase");
         compiled = sucraseTransform(wrapped, {
           transforms: ["jsx", "typescript"],
-          jsxPragma: "React.createElement",
-          jsxFragmentPragma: "React.Fragment",
+          jsxRuntime: "automatic",
+          production: import.meta.env.PROD,
         }).code;
+        // Sucrase automatic runtime injects imports from react/jsx(-dev)-runtime.
+        // Strip those import lines so we can evaluate via Function and provide
+        // the required helpers explicitly.
+        compiled = compiled.replace(
+          /\bimport\s*\{[^}]*\}\s*from\s*["']react\/jsx(?:-dev)?-runtime["'];?/g,
+          ""
+        );
       } catch (e: unknown) {
         // Attempt to extract line/column and adjust for wrapper prefix
         const msg = e instanceof Error ? e.message : String(e);
@@ -164,11 +173,21 @@ export default function Playground() {
       }
       // Skip logging the converted (compiled) JSX to keep logs concise
       const { twj } = await import("tw-to-css");
+      const argNames: string[] = ["React", "twj"];
+      const argValues: unknown[] = [React, twj];
+      if (import.meta.env.PROD) {
+        // In production, Sucrase uses jsx/jsxs helpers.
+        argNames.push("_jsx", "_jsxs", "_Fragment");
+        argValues.push(ReactJSXRuntime.jsx, ReactJSXRuntime.jsxs, React.Fragment);
+      } else {
+        // In development, Sucrase uses jsxDEV helper.
+        argNames.push("_jsxDEV", "_Fragment");
+        argValues.push(ReactJSXDevRuntime.jsxDEV, React.Fragment);
+      }
       const rawElement = new Function(
-        "React",
-        "twj",
+        ...argNames,
         `${compiled}; return __expr__;`
-      )(React, twj) as React.ReactElement;
+      )(...argValues) as React.ReactElement;
       // Inline image URLs to data URIs before converting to Takumi node
       const element = await inlineImageSources(rawElement, { log: appendLog });
       // Log final JSX-like output after twj and inlining
