@@ -1,11 +1,11 @@
 import { container, text, image, percentage } from "@takumi-rs/helpers";
 
 export type JsonNode =
-  | ({ type: "container" } & Record<string, any>)
-  | ({ type: "text"; text: string } & Record<string, any>)
-  | ({ type: "image" } & Record<string, any>);
+  | ({ type: "container" } & Record<string, unknown>)
+  | ({ type: "text"; text: string } & Record<string, unknown>)
+  | ({ type: "image" } & Record<string, unknown>);
 
-function toColor(input: any): any {
+function toColor(input: unknown): unknown {
   if (typeof input === "number") return input;
   if (typeof input !== "string") return input;
   const hex = input.trim();
@@ -16,7 +16,7 @@ function toColor(input: any): any {
   return input;
 }
 
-function mapPercent(v: any) {
+function mapPercent(v: unknown): unknown {
   if (typeof v === "string" && v.endsWith("%")) {
     const n = Number(v.slice(0, -1));
     if (!Number.isNaN(n)) return percentage(n);
@@ -24,8 +24,8 @@ function mapPercent(v: any) {
   return v;
 }
 
-function normalizeStyle(obj: any): any {
-  const out: any = {};
+function normalizeStyle(obj: Record<string, unknown> | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj ?? {})) {
     if (k.toLowerCase().includes("color")) out[k] = toColor(v);
     else out[k] = mapPercent(v);
@@ -33,30 +33,47 @@ function normalizeStyle(obj: any): any {
   return out;
 }
 
-export function jsonToTakumiNode(node: JsonNode): any {
+function omitProps(obj: Record<string, unknown>, keys: string[]): Record<string, unknown> {
+  const set = new Set(keys);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (!set.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+export function jsonToTakumiNode(node: JsonNode): unknown {
   if (!node || typeof node !== "object") throw new Error("Invalid JSON node");
   switch (node.type) {
     case "container": {
-      const { children = [], style, type: _t, ...rest } = node as any;
+      const base = node as Record<string, unknown>;
+      const children = (base.children as unknown[]) ?? [];
+      const style = base.style as Record<string, unknown> | undefined;
+      const rest = omitProps(base, ["type", "children", "style"]);
       const merged = { ...(style ?? {}), ...rest };
       return container({
         ...normalizeStyle(merged),
-        children: (children as any[]).map(jsonToTakumiNode),
+        children: children.map(jsonToTakumiNode),
       });
     }
     case "text": {
-      const { text: content, style, type: _t, ...rest } = node as any;
+      const base = node as Record<string, unknown>;
+      const content = String(base.text);
+      const style = base.style as Record<string, unknown> | undefined;
+      const rest = omitProps(base, ["type", "text", "style"]);
       const finalStyle = normalizeStyle({ ...(style ?? {}), ...rest });
       return text(String(content), finalStyle);
     }
     case "image": {
-      const { style, type: _t, ...rest } = node as any;
-      const img = { ...(style ? { style: normalizeStyle(style) } : {}), ...rest };
+      const base = node as Record<string, unknown>;
+      const style = base.style as Record<string, unknown> | undefined;
+      const rest = omitProps(base, ["type", "style"]);
+      const img: Record<string, unknown> = { ...(style ? { style: normalizeStyle(style) } : {}), ...rest };
       // color-ish props
-      if ("tintColor" in img) img.tintColor = toColor(img.tintColor);
-      return image(img as any);
+      if ("tintColor" in img) img.tintColor = toColor((img as Record<string, unknown>).tintColor);
+      return image(img as unknown);
     }
     default:
-      throw new Error(`Unsupported node type ${(node as any).type}`);
+      throw new Error(`Unsupported node type ${(node as Record<string, unknown>).type}`);
   }
 }

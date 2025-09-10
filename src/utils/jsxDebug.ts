@@ -1,7 +1,7 @@
 import React from "react";
 
 // Pretty-print a React element as JSX-like string for logging
-export function toJsxString(node: any, depth = 0): string {
+export function toJsxString(node: unknown, depth = 0): string {
   const indent = (n: number) => "  ".repeat(n);
   const maxLen = 4000;
 
@@ -16,7 +16,7 @@ export function toJsxString(node: any, depth = 0): string {
     return `"${esc}"`;
   };
 
-  const formatStyle = (style: any): string => {
+  const formatStyle = (style: unknown): string => {
     try {
       return JSON.stringify(style);
     } catch {
@@ -24,7 +24,7 @@ export function toJsxString(node: any, depth = 0): string {
     }
   };
 
-  const formatProp = (key: string, value: any): string => {
+  const formatProp = (key: string, value: unknown): string => {
     if (key === "children" || key === "key" || key === "ref") return "";
     if (value == null || typeof value === "boolean") {
       return value ? key : "";
@@ -50,16 +50,16 @@ export function toJsxString(node: any, depth = 0): string {
     return `${key}={…}`;
   };
 
-  const formatProps = (props: any): string => {
+  const formatProps = (props: Record<string, unknown>): string => {
     const parts: string[] = [];
     for (const k in props) {
-      const s = formatProp(k, (props as any)[k]);
+      const s = formatProp(k, (props as Record<string, unknown>)[k]);
       if (s) parts.push(s);
     }
     return parts.length ? " " + parts.join(" ") : "";
   };
 
-  const formatChildren = (children: any, d: number): string => {
+  const formatChildren = (children: unknown, d: number): string => {
     if (children == null || children === false) return "";
     if (typeof children === "string") return formatString(children);
     if (typeof children === "number") return String(children);
@@ -79,11 +79,11 @@ export function toJsxString(node: any, depth = 0): string {
     return indent(depth) + String(node ?? "");
   }
 
-  const el = node as React.ReactElement<any, any>;
-  const type = typeof el.type === "string" ? el.type : (el.type as any)?.name || "Component";
-  const open = `<${type}${formatProps((el as any).props)}>`;
+  const el = node as React.ReactElement;
+  const type = typeof el.type === "string" ? el.type : (el.type as { name?: string })?.name || "Component";
+  const open = `<${type}${formatProps(el.props as Record<string, unknown>)}>`;
   const close = `</${type}>`;
-  const children = formatChildren(((el as any).props as any)?.children, depth + 1);
+  const children = formatChildren((el.props as Record<string, unknown>)?.children, depth + 1);
   const singleLine = children === "";
   const out = singleLine
     ? `${indent(depth)}${open}${close}`

@@ -27,22 +27,22 @@ export async function inlineImageSources(
   let replaced = 0;
   let failed = 0;
 
-  const processNode = async (node: any): Promise<any> => {
+  const processNode = async (node: unknown): Promise<unknown> => {
     if (node == null || typeof node !== "object") return node;
     if (!React.isValidElement(node)) return node;
-    const el = node as React.ReactElement<any, any>;
-    const type = el.type as any;
-    const props: Record<string, any> = { ...((el as any).props as Record<string, any>) };
+    const el = node as React.ReactElement;
+    const type = el.type;
+    const props: Record<string, unknown> = { ...(el.props as Record<string, unknown>) };
 
     if (props.children !== undefined) {
       props.children = await processChildren(props.children);
     }
 
     if (typeof type === "string" && type.toLowerCase() === "img") {
-      const src: unknown = props.src;
+      const src: unknown = (props as Record<string, unknown>).src;
       if (typeof src === "string" && src && !isDataUri(src)) {
         try {
-          props.src = await fetchAsDataUrl(src);
+          (props as Record<string, unknown>).src = await fetchAsDataUrl(src);
           replaced += 1;
         } catch (e) {
           failed += 1;
@@ -60,12 +60,12 @@ export async function inlineImageSources(
     return React.cloneElement(el, props);
   };
 
-  const processChildren = async (children: any): Promise<any> => {
+  const processChildren = async (children: unknown): Promise<unknown> => {
     if (Array.isArray(children)) return Promise.all(children.map((c) => processNode(c)));
     return processNode(children);
   };
 
-  const out = await processNode(element);
+  const out = (await processNode(element)) as React.ReactElement;
   if (replaced || failed) {
     log("info", `[PG][IMG] Inlined ${replaced} image(s)` + (failed ? `, ${failed} failed` : ""));
   }

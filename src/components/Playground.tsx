@@ -64,19 +64,19 @@ export default function Playground() {
     };
     console.log = (...args: unknown[]) => {
       appendLog("log", ...args);
-      original.log.apply(console, args as any);
+      original.log(...(args as Parameters<typeof console.log>));
     };
     console.info = (...args: unknown[]) => {
       appendLog("info", ...args);
-      original.info.apply(console, args as any);
+      original.info(...(args as Parameters<typeof console.info>));
     };
     console.warn = (...args: unknown[]) => {
       appendLog("warn", ...args);
-      original.warn.apply(console, args as any);
+      original.warn(...(args as Parameters<typeof console.warn>));
     };
     console.error = (...args: unknown[]) => {
       appendLog("error", ...args);
-      original.error.apply(console, args as any);
+      original.error(...(args as Parameters<typeof console.error>));
     };
 
     return () => {
@@ -193,8 +193,6 @@ export default function Playground() {
   }, [
     ready,
     jsxCode,
-    width,
-    height,
     format,
     renderAsDataUrl,
     hasLoadedFontsRef,
@@ -217,7 +215,7 @@ export default function Playground() {
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [autoRender, ready, doRender, jsxCode, width, height, format, debounceMs]);
+  }, [autoRender, ready, doRender, jsxCode, format, debounceMs]);
 
   const canRender = ready && !initializing && !initError;
 
