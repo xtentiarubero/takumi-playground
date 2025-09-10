@@ -10,6 +10,9 @@
   color: #e6e9ff;
 }
 
+/* Light theme overrides */
+ 
+
 /* Header */
 .pg-header {
   display: flex;
@@ -20,6 +23,8 @@
   background: rgba(8, 12, 24, 0.65);
   backdrop-filter: blur(10px);
 }
+
+ 
 
 .pg-title {
   font-size: 16px;
@@ -42,6 +47,8 @@
   background: rgba(255,255,255,0.04);
   border-radius: 8px;
 }
+
+ 
 
 .pg-field label {
   font-size: 12px;
@@ -77,6 +84,8 @@
   cursor: not-allowed;
 }
 
+ 
+
 .pg-status { font-size: 12px; opacity: 0.7; margin-left: 12px; }
 
 /* Panels */
@@ -100,6 +109,8 @@
   background: rgba(255,255,255,0.12);
 }
 
+ 
+
 .pg-resize-vertical {
   height: 6px;
   background: rgba(255, 255, 255, 0.06);
@@ -113,6 +124,8 @@
   margin: auto 0;
   background: rgba(255,255,255,0.12);
 }
+
+ 
 
 /* Tabs */
 .pg-tabs {
@@ -159,6 +172,8 @@
   background: rgba(0,0,0,0.25);
 }
 
+ 
+
 .pg-placeholder {
   opacity: 0.6;
   font-size: 14px;
@@ -175,6 +190,8 @@
   white-space: pre-wrap;
 }
 
+ 
+
 /* Logs */
 .pg-logs {
   display: flex;
@@ -183,6 +200,7 @@
   border-top: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.03);
 }
+ 
 .pg-logs-header {
   display: flex;
   align-items: center;
@@ -190,6 +208,7 @@
   padding: 6px 8px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
+ 
 .pg-logs-title {
   display: inline-flex;
   align-items: center;
@@ -236,3 +255,5 @@
 .pg-log-info { color: #b6e6ff; }
 .pg-log-warn { color: #ffe6a3; }
 .pg-log-error { color: #ffb3b3; }
+
+ 

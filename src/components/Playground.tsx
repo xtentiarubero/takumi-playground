@@ -58,21 +58,21 @@ export default function Playground() {
 
   const appendLog = useCallback((level: LogLevel, ...args: unknown[]) => {
     const id = ++logIdRef.current;
-    // Format args similar to console: join with spaces, JSON for objects
     const parts = args.map((a) => {
+      if (a instanceof Error) {
+        const name = a.name || "Error";
+        const msg = a.message || String(a);
+        const stack = typeof a.stack === "string" ? a.stack.split("\n").slice(1, 3).join("\n") : "";
+        return stack ? `${name}: ${msg}\n${stack}` : `${name}: ${msg}`;
+      }
       if (typeof a === "string") return a;
       try {
-        return JSON.stringify(
-          a,
-          (_, v) => (v instanceof Error ? v.message : v),
-          2
-        );
+        return JSON.stringify(a, null, 2);
       } catch {
         return String(a);
       }
     });
     const text = parts.join(" ");
-    // Keep only the latest log entry (no history)
     setLogs([{ id, level, time: Date.now(), text }]);
   }, []);
 
@@ -136,11 +136,33 @@ export default function Playground() {
       const w = width;
       const h = height;
       const wrapped = `const __expr__ = ${jsxCode}`;
-      const compiled = sucraseTransform(wrapped, {
-        transforms: ["jsx", "typescript"],
-        jsxPragma: "React.createElement",
-        jsxFragmentPragma: "React.Fragment",
-      }).code;
+
+      // First, try to transform JSX. If this fails, it's a parse error.
+      let compiled: string;
+      try {
+        compiled = sucraseTransform(wrapped, {
+          transforms: ["jsx", "typescript"],
+          jsxPragma: "React.createElement",
+          jsxFragmentPragma: "React.Fragment",
+        }).code;
+      } catch (e: unknown) {
+        // Attempt to extract line/column and adjust for wrapper prefix
+        const msg = e instanceof Error ? e.message : String(e);
+        let line: number | null = null;
+        let column: number | null = null;
+        const m = typeof msg === "string" ? msg.match(/(\d+):(\d+)/) : null;
+        if (m) {
+          line = Number(m[1]);
+          column = Number(m[2]);
+        }
+        const prefix = "const __expr__ = ";
+        const adjustedColumn = line === 1 && column != null ? Math.max(1, column - prefix.length) : column ?? null;
+        const loc = line && adjustedColumn ? ` at ${line}:${adjustedColumn}` : "";
+        const friendly = `JSX parse error${loc}: ${msg}`;
+        appendLog("error", friendly);
+        setError(friendly);
+        return;
+      }
       // Show only the converted (compiled) JSX in the logs panel as an error entry and trim for brevity
       const compiledPreview =
         compiled.length > 2048
@@ -156,8 +178,11 @@ export default function Playground() {
       const url = await renderAsDataUrl(node, w, h, format);
       setImgUrl(url);
     } catch (e: unknown) {
+      // Log runtime/render errors to the debug panel as well
+      const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      appendLog("error", `Render error: ${msg}`);
       console.error(e);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(msg);
     } finally {
       setRendering(false);
     }
