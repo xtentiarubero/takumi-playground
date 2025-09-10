@@ -11,7 +11,7 @@ import { transform as sucraseTransform } from "sucrase";
 import { fromJsx } from "@takumi-rs/helpers/jsx";
 import { useTakumi } from "../hooks/useTakumi";
 import { clsx } from "clsx";
-import { Play, Download, RefreshCw, Bug, Trash2, Copy } from "lucide-react";
+import { Play, Download, RefreshCw, Bug, Trash2, Copy, Moon, Sun } from "lucide-react";
 import "../playground.css";
 import { twj } from "tw-to-css";
 
@@ -37,6 +37,7 @@ const DEFAULT_JSX = `<div style={{
 
 export default function Playground() {
   const [jsxCode, setJsxCode] = useState<string>(DEFAULT_JSX);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const width = 1200;
   const height = 630;
   const [format, setFormat] = useState<"png" | "webp">("png");
@@ -229,8 +230,10 @@ export default function Playground() {
     a.click();
   }
 
+  const editorTheme = theme === "dark" ? "vs-dark" : "vs";
+
   return (
-    <div className="pg-root">
+    <div className="pg-root" data-theme={theme}>
       <header className="pg-header">
         <div className="pg-title">Takumi Playground</div>
         <div className="pg-controls">
@@ -278,6 +281,13 @@ export default function Playground() {
             <RefreshCw size={16} /> {autoRender ? "Auto" : "Manual"}
           </button>
           <button
+            className="pg-btn"
+            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            title="Toggle theme"
+          >
+            {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />} {theme === "dark" ? "Dark" : "Light"}
+          </button>
+          <button
             className={clsx("pg-btn", { disabled: !imgUrl })}
             disabled={!imgUrl}
             onClick={downloadCurrent}
@@ -293,7 +303,7 @@ export default function Playground() {
             <Editor
               height="100%"
               value={jsxCode}
-              theme="vs-dark"
+              theme={editorTheme}
               defaultLanguage="javascript"
               onChange={(v) => setJsxCode(v ?? "")}
               options={{
