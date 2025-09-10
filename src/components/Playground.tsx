@@ -15,23 +15,191 @@ import { Play, Download, RefreshCw, Bug, Trash2, Copy, Moon, Sun } from "lucide-
 import "../playground.css";
 import { twj } from "tw-to-css";
 
-const DEFAULT_JSX = `<div style={{
-  width: "100%",
-  height: "100%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "linear-gradient(135deg, #0b1020 0%, #1a213a 100%)",
-}}>
-  <div style={{
-    padding: 48,
-    borderRadius: 24,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-  }}>
-    <div style={{ fontSize: 64, color: "#fff", fontWeight: 700 }}>Takumi Playground</div>
-    <div style={{ fontSize: 24, color: "#B6C1FF", marginTop: 8 }}>Render PNG from JSX</div>
+// Pretty-print a React element as JSX-like string for logging
+function toJsxString(node: any, depth = 0): string {
+  const indent = (n: number) => "  ".repeat(n);
+  const maxLen = 4000;
+
+  const formatString = (s: string): string => {
+    // Compact long data URIs and very long strings to keep logs readable
+    if (/^data:[^;]+;base64,/.test(s)) {
+      const head = s.slice(0, 64);
+      return `"${head}… (data uri, ${s.length} chars)"`;
+    }
+    const esc = s.replace(/"/g, '\\"');
+    if (esc.length > 160) return `"${esc.slice(0, 160)}… (${esc.length} chars)"`;
+    return `"${esc}"`;
+  };
+
+  const formatStyle = (style: any): string => {
+    try {
+      return JSON.stringify(style);
+    } catch {
+      return '{/* style */}';
+    }
+  };
+
+  const formatProp = (key: string, value: any): string => {
+    if (key === "children" || key === "key" || key === "ref") return "";
+    if (value == null || typeof value === "boolean") {
+      return value ? key : "";
+    }
+    if (typeof value === "string") {
+      return `${key}=${formatString(value)}`;
+    }
+    if (key === "style" && typeof value === "object") {
+      return `${key}={${formatStyle(value)}}`;
+    }
+    if (typeof value === "number") {
+      return `${key}={${value}}`;
+    }
+    if (Array.isArray(value)) {
+      return `${key}={[…]}`;
+    }
+    if (typeof value === "object") {
+      return `${key}={…}`;
+    }
+    if (typeof value === "function") {
+      return `${key}={fn}`;
+    }
+    return `${key}={…}`;
+  };
+
+  const formatProps = (props: any): string => {
+    const parts: string[] = [];
+    for (const k in props) {
+      const s = formatProp(k, (props as any)[k]);
+      if (s) parts.push(s);
+    }
+    return parts.length ? " " + parts.join(" ") : "";
+  };
+
+  const formatChildren = (children: any, d: number): string => {
+    if (children == null || children === false) return "";
+    if (typeof children === "string") return formatString(children);
+    if (typeof children === "number") return String(children);
+    if (Array.isArray(children)) {
+      const inner = children
+        .map((c) => toJsxString(c, d + 1))
+        .filter(Boolean)
+        .join("\n");
+      return `\n${inner}\n${indent(d)}`;
+    }
+    return `\n${toJsxString(children, d + 1)}\n${indent(d)}`;
+  };
+
+  if (node == null || typeof node !== "object" || !React.isValidElement(node)) {
+    if (typeof node === "string") return indent(depth) + formatString(node);
+    if (typeof node === "number") return indent(depth) + String(node);
+    return indent(depth) + String(node ?? "");
+  }
+
+  const el = node as React.ReactElement;
+  const type = typeof el.type === "string" ? el.type : (el.type as any)?.name || "Component";
+  const open = `<${type}${formatProps(el.props)}>`;
+  const close = `</${type}>`;
+  const children = formatChildren(el.props?.children, depth + 1);
+  const singleLine = children === "";
+  const out = singleLine
+    ? `${indent(depth)}${open}${close}`
+    : `${indent(depth)}${open}${children}${close}`;
+  return out.length > maxLen ? out.slice(0, maxLen) + "\n/* … trimmed … */" : out;
+}
+
+// Create a Data URI from a Blob by base64-encoding its bytes
+async function createObjectURL(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000; // encode in chunks to avoid large arg lists
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return `data:${blob.type};base64,${btoa(binary)}`;
+}
+
+// Walk a React element tree and inline <img src> URLs as Data URIs
+async function inlineImageSources(
+  element: React.ReactElement,
+  opts?: { log?: (level: "info" | "warn" | "error" | "log", ...args: unknown[]) => void }
+): Promise<React.ReactElement> {
+  const log = opts?.log ?? (() => {});
+  const isDataUri = (s: string) => /^data:/i.test(s);
+  const cache = new Map<string, Promise<string>>();
+
+  const fetchAsDataUrl = async (url: string): Promise<string> => {
+    if (cache.has(url)) return cache.get(url)!;
+    const p = (async () => {
+      const res = await fetch(url, { mode: "cors", credentials: "omit" });
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+      const blob = await res.blob();
+      return await createObjectURL(blob);
+    })();
+    cache.set(url, p);
+    return p;
+  };
+
+  let replaced = 0;
+  let failed = 0;
+
+  const processNode = async (node: any): Promise<any> => {
+    if (node == null || typeof node !== "object") return node;
+    if (!React.isValidElement(node)) return node;
+    const type = (node as React.ReactElement).type as any;
+    const props: any = { ...(node as React.ReactElement).props };
+
+    if (props.children !== undefined) {
+      props.children = await processChildren(props.children);
+    }
+
+    if (typeof type === "string" && type.toLowerCase() === "img") {
+      const src: unknown = props.src;
+      if (typeof src === "string" && src && !isDataUri(src)) {
+        try {
+          props.src = await fetchAsDataUrl(src);
+          replaced += 1;
+        } catch (e) {
+          failed += 1;
+          log(
+            "warn",
+            "[IMG] Failed to inline",
+            String(src),
+            "=>",
+            e instanceof Error ? e.message : String(e)
+          );
+        }
+      }
+    }
+
+    return React.cloneElement(node as React.ReactElement, props);
+  };
+
+  const processChildren = async (children: any): Promise<any> => {
+    if (Array.isArray(children)) return Promise.all(children.map((c) => processNode(c)));
+    return processNode(children);
+  };
+
+  const out = await processNode(element);
+  if (replaced || failed) {
+    log("info", `[PG][IMG] Inlined ${replaced} image(s)` + (failed ? `, ${failed} failed` : ""));
+  }
+  return out;
+}
+
+const DEFAULT_JSX = `<div style={twj("h-full w-full flex items-start justify-start bg-white")}>
+  <div style={twj("flex items-start justify-start h-full w-full relative")}>
+    <img
+      style={{ ...twj("absolute inset-0 w-full h-full"), ...{ objectFit: "cover" } }}
+      src="https://picsum.photos/seed/picsum/1200/630"
+    />
+    <div
+      style={{ ...twj("absolute inset-0 w-full h-full"), ...{ backgroundColor: "rgba(0,0,0,0.6)" } }}
+    ></div>
+    <div style={twj("flex items-center justify-center w-full h-full absolute inset-0")}>
+      <div style={twj("text-[80px] text-white font-black text-center mx-20")}>
+        Takumi Playground
+      </div>
+    </div>
   </div>
 </div>`;
 
@@ -72,19 +240,40 @@ export default function Playground() {
       }
     });
     const text = parts.join(" ");
-    setLogs([{ id, level, time: Date.now(), text }]);
+    const entry: LogItem = { id, level, time: Date.now(), text };
+    setLogs((prev) => [...prev, entry]);
   }, []);
 
   // Patch console methods to mirror into logs panel
   useEffect(() => {
-    const originalError = console.error;
+    const original = {
+      log: console.log,
+      info: console.info,
+      warn: console.warn,
+      error: console.error,
+    };
+    console.log = (...args: unknown[]) => {
+      appendLog("log", ...args);
+      original.log.apply(console, args as any);
+    };
+    console.info = (...args: unknown[]) => {
+      appendLog("info", ...args);
+      original.info.apply(console, args as any);
+    };
+    console.warn = (...args: unknown[]) => {
+      appendLog("warn", ...args);
+      original.warn.apply(console, args as any);
+    };
     console.error = (...args: unknown[]) => {
       appendLog("error", ...args);
-      originalError.apply(console, args as any);
+      original.error.apply(console, args as any);
     };
 
     return () => {
-      console.error = originalError;
+      console.log = original.log;
+      console.info = original.info;
+      console.warn = original.warn;
+      console.error = original.error;
     };
   }, [appendLog]);
 
@@ -117,6 +306,8 @@ export default function Playground() {
 
   const doRender = useCallback(async () => {
     if (!ready) return;
+    // Start a fresh log set for this render
+    setLogs([]);
     // Ensure fonts are loaded before any rendering starts
     if (!hasLoadedFontsRef.current) {
       try {
@@ -168,11 +359,15 @@ export default function Playground() {
           ? compiled.slice(0, 2048) + "\n/* ... trimmed ... */"
           : compiled;
       appendLog("info", "[PG][JSX] Converted JSX:", compiledPreview);
-      const element = new Function(
+      const rawElement = new Function(
         "React",
         "twj",
         `${compiled}; return __expr__;`
       )(React, twj) as React.ReactElement;
+      // Inline image URLs to data URIs before converting to Takumi node
+      const element = await inlineImageSources(rawElement, { log: appendLog });
+      // Log final JSX-like output after twj and inlining
+      appendLog("info", "[PG][JSX] Final JSX:", "\n" + toJsxString(element));
       const node = await fromJsx(element);
       const url = await renderAsDataUrl(node, w, h, format);
       setImgUrl(url);
