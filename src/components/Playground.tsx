@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { transform as sucraseTransform } from "sucrase";
-import { fromJsx } from "@takumi-rs/helpers/jsx";
 import { useTakumi } from "../hooks/useTakumi";
 import "../playground.css";
-import { twj } from "tw-to-css";
 import { toJsxString } from "../utils/jsxDebug";
 import { inlineImageSources } from "../utils/inlineImages";
 import PlaygroundHeader from "./playground/Header";
@@ -139,7 +136,9 @@ export default function Playground() {
 
       // First, try to transform JSX. If this fails, it's a parse error.
       let compiled: string;
+      // Lazy-load sucrase to keep initial bundle light
       try {
+        const { transform: sucraseTransform } = await import("sucrase");
         compiled = sucraseTransform(wrapped, {
           transforms: ["jsx", "typescript"],
           jsxPragma: "React.createElement",
@@ -163,12 +162,8 @@ export default function Playground() {
         setError(friendly);
         return;
       }
-      // Show only the converted (compiled) JSX in the logs panel as an error entry and trim for brevity
-      const compiledPreview =
-        compiled.length > 2048
-          ? compiled.slice(0, 2048) + "\n/* ... trimmed ... */"
-          : compiled;
-      appendLog("info", "[PG][JSX] Converted JSX:", compiledPreview);
+      // Skip logging the converted (compiled) JSX to keep logs concise
+      const { twj } = await import("tw-to-css");
       const rawElement = new Function(
         "React",
         "twj",
@@ -178,6 +173,7 @@ export default function Playground() {
       const element = await inlineImageSources(rawElement, { log: appendLog });
       // Log final JSX-like output after twj and inlining
       appendLog("info", "[PG][JSX] Final JSX:", "\n" + toJsxString(element));
+      const { fromJsx } = await import("@takumi-rs/helpers/jsx");
       const node = await fromJsx(element);
       const url = await renderAsDataUrl(node, w, h, format);
       setImgUrl(url);
