@@ -234,6 +234,7 @@ export default function Playground() {
       <header className="pg-header">
         <div className="pg-title">Takumi Playground</div>
         <div className="pg-controls">
+          <div className="pg-status">{headerStatus}</div>
           <div className="pg-field">
             <label>Format</label>
             <select
@@ -283,7 +284,6 @@ export default function Playground() {
           >
             <Download size={16} /> Download
           </button>
-          <div className="pg-status">{headerStatus}</div>
         </div>
       </header>
 
