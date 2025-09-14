@@ -16,6 +16,8 @@ type Props = {
   onRender: () => void;
   onDownload: () => void;
   hasImage: boolean;
+  mode: "jsx" | "js";
+  onModeChange: (m: "jsx" | "js") => void;
 };
 
 export default function PlaygroundHeader({
@@ -33,6 +35,8 @@ export default function PlaygroundHeader({
   onRender,
   onDownload,
   hasImage,
+  mode,
+  onModeChange,
 }: Props) {
   const editorThemeLabel = theme === "dark" ? "Dark" : "Light";
 
@@ -42,10 +46,28 @@ export default function PlaygroundHeader({
       <div className="pg-controls">
         <div className="pg-status">{status}</div>
         <div className="pg-field">
+          <label>Mode</label>
+          <select
+            value={mode}
+            onChange={(e) =>
+              onModeChange(
+                (e.target as HTMLSelectElement).value as "jsx" | "js"
+              )
+            }
+          >
+            <option value="jsx">JSX</option>
+            <option value="js">JS (helpers)</option>
+          </select>
+        </div>
+        <div className="pg-field">
           <label>Format</label>
           <select
             value={format}
-            onChange={(e) => onFormatChange((e.target as HTMLSelectElement).value as "png" | "webp")}
+            onChange={(e) =>
+              onFormatChange(
+                (e.target as HTMLSelectElement).value as "png" | "webp"
+              )
+            }
           >
             <option value="png">PNG</option>
             <option value="webp">WEBP</option>
@@ -58,7 +80,9 @@ export default function PlaygroundHeader({
             min={0}
             step={50}
             value={debounceMs}
-            onChange={(e) => onDebounceChange(Math.max(0, Number(e.target.value) || 0))}
+            onChange={(e) =>
+              onDebounceChange(Math.max(0, Number(e.target.value) || 0))
+            }
             title="Auto render debounce delay in milliseconds"
           />
         </div>
@@ -70,13 +94,22 @@ export default function PlaygroundHeader({
         >
           <Play size={16} /> {rendering ? "Rendering..." : "Render"}
         </button>
-        <button className="pg-btn" onClick={onToggleAutoRender} title="Toggle auto render">
+        <button
+          className="pg-btn"
+          onClick={onToggleAutoRender}
+          title="Toggle auto render"
+        >
           <RefreshCw size={16} /> {autoRender ? "Auto" : "Manual"}
         </button>
         <button className="pg-btn" onClick={onToggleTheme} title="Toggle theme">
-          {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />} {editorThemeLabel}
+          {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />}{" "}
+          {editorThemeLabel}
         </button>
-        <button className={clsx("pg-btn", { disabled: !hasImage })} disabled={!hasImage} onClick={onDownload}>
+        <button
+          className={clsx("pg-btn", { disabled: !hasImage })}
+          disabled={!hasImage}
+          onClick={onDownload}
+        >
           <Download size={16} /> Download
         </button>
       </div>
